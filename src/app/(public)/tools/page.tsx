@@ -73,33 +73,68 @@ function Notepad() {
 
 function Drawpad() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
+  // 1. Responsive Resize Logic
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.strokeStyle = "#a855f7"; // Purple default
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
-    }
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (canvas && container) {
+        // Set actual pixel density to match screen size (prevents blur)
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+        
+        // Re-setup context after resize
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.strokeStyle = "#a855f7"; // Purple default
+          ctx.lineWidth = 3;
+          ctx.lineCap = "round";
+        }
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Call once on mount
+
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const startDraw = (e: React.MouseEvent) => {
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx) {
       ctx.beginPath();
-      ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+      // Handle Touch vs Mouse
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.nativeEvent.offsetX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.nativeEvent.offsetY;
+      
+      // Adjustment for offset if using Touch (Mouse offsetX handles it automatically)
+      if ('touches' in e) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if(rect) ctx.moveTo(clientX - rect.left, clientY - rect.top);
+      } else {
+        ctx.moveTo(clientX, clientY);
+      }
       setIsDrawing(true);
     }
   };
 
-  const draw = (e: React.MouseEvent) => {
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx) {
-      ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+      // Handle Touch vs Mouse
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.nativeEvent.offsetX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.nativeEvent.offsetY;
+
+      if ('touches' in e) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if(rect) ctx.lineTo(clientX - rect.left, clientY - rect.top);
+      } else {
+        ctx.lineTo(clientX, clientY);
+      }
       ctx.stroke();
     }
   };
@@ -110,28 +145,21 @@ function Drawpad() {
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  const download = () => {
-    const link = document.createElement('a');
-    link.download = 'drawing.png';
-    link.href = canvasRef.current?.toDataURL() || "";
-    link.click();
-  };
-
   return (
-    <div className="flex flex-col h-full relative">
-       <div className="absolute top-4 left-4 bg-[#1a1a1a]/90 backdrop-blur p-2 rounded-lg border border-white/10 flex gap-2">
-         <button onClick={clear} className="p-2 hover:bg-white/10 rounded text-red-400" title="Clear"><Eraser size={20}/></button>
-         <button onClick={download} className="p-2 hover:bg-white/10 rounded text-purple-400" title="Save"><Save size={20}/></button>
+    <div ref={containerRef} className="flex flex-col h-full relative w-full bg-[#0f0f0f]">
+       <div className="absolute top-4 left-4 z-10 bg-[#1a1a1a]/90 backdrop-blur p-2 rounded-lg border border-white/10 flex gap-2">
+         <button onClick={clear} className="p-2 hover:bg-white/10 rounded text-red-400"><Eraser size={20}/></button>
        </div>
        <canvas 
          ref={canvasRef}
-         width={1024}
-         height={768}
-         className="w-full h-full cursor-crosshair bg-[#0f0f0f]"
+         className="w-full h-full cursor-crosshair touch-none" // touch-none prevents scrolling while drawing
          onMouseDown={startDraw}
          onMouseMove={draw}
          onMouseUp={() => setIsDrawing(false)}
          onMouseLeave={() => setIsDrawing(false)}
+         onTouchStart={startDraw}
+         onTouchMove={draw}
+         onTouchEnd={() => setIsDrawing(false)}
        />
     </div>
   );

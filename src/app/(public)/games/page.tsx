@@ -1,83 +1,148 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Cpu, Zap } from "lucide-react";
+import { Cpu, Target, Grid3X3, MousePointer2 } from "lucide-react";
 
 export default function GamesPage() {
-  // Simple "Hacker Tycoon" Logic
-  const [bits, setBits] = useState(0);
-  const [clickPower, setClickPower] = useState(1);
+  const [activeGame, setActiveGame] = useState<"miner" | "aim" | "puzzle">("miner");
 
-  const mineBitcoin = () => {
-    setBits(prev => prev + clickPower);
-    // Visual feedback logic could go here
+  return (
+    <div className="min-h-screen bg-black text-white p-4 pt-24">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-4xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-500">
+          Cyber Arcade
+        </h1>
+
+        {/* Game Selector Tabs */}
+        <div className="flex justify-center gap-4 mb-12 flex-wrap">
+          <GameTab name="Quantum Miner" icon={<Cpu/>} isActive={activeGame === "miner"} onClick={() => setActiveGame("miner")} />
+          <GameTab name="Aim Trainer" icon={<Target/>} isActive={activeGame === "aim"} onClick={() => setActiveGame("aim")} />
+          <GameTab name="Memory Grid" icon={<Grid3X3/>} isActive={activeGame === "puzzle"} onClick={() => setActiveGame("puzzle")} />
+        </div>
+
+        {/* Game Area */}
+        <div className="bg-slate-900/50 border border-slate-700 p-4 md:p-8 rounded-3xl min-h-[500px] relative overflow-hidden">
+          {activeGame === "miner" && <MinerGame />}
+          {activeGame === "aim" && <AimTrainer />}
+          {activeGame === "puzzle" && <MemoryPuzzle />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Components ---
+
+function GameTab({ name, icon, isActive, onClick }: any) {
+  return (
+    <button onClick={onClick} className={`flex items-center gap-2 px-6 py-3 rounded-full border transition-all ${isActive ? "bg-cyan-600 border-cyan-400 text-white" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"}`}>
+      {icon} {name}
+    </button>
+  );
+}
+
+// 1. Existing Miner Game
+function MinerGame() {
+  const [bits, setBits] = useState(0);
+  return (
+    <div className="text-center py-20">
+       <h2 className="text-2xl font-bold mb-4">Quantum Miner</h2>
+       <div className="text-6xl font-mono text-emerald-400 mb-8">{bits}</div>
+       <button onClick={() => setBits(b => b + 1)} className="bg-cyan-600 px-8 py-4 rounded-full font-bold active:scale-95 transition-transform">
+         MINE DATA
+       </button>
+    </div>
+  );
+}
+
+// 2. Aim Trainer (DPI Test)
+function AimTrainer() {
+  const [score, setScore] = useState(0);
+  const [position, setPosition] = useState({ top: "50%", left: "50%" });
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    if (playing && timeLeft > 0) {
+      const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0) {
+      setPlaying(false);
+    }
+  }, [timeLeft, playing]);
+
+  const moveTarget = () => {
+    if (!playing) return;
+    setScore(s => s + 1);
+    const x = Math.random() * 80 + 10; // keep within 10-90%
+    const y = Math.random() * 80 + 10;
+    setPosition({ top: `${y}%`, left: `${x}%` });
   };
 
-  const upgradeRig = () => {
-    if (bits >= 50) {
-      setBits(b => b - 50);
-      setClickPower(p => p + 1);
-    }
+  const startGame = () => {
+    setScore(0);
+    setTimeLeft(30);
+    setPlaying(true);
+    moveTarget();
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-8 pt-24">
-      <h1 className="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">
-        Cyber Arcade
-      </h1>
-      <p className="text-slate-400 mb-12">Experimental web toys and indie gems.</p>
-
-      {/* The Built-in Mini Game */}
-      <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
-        
-        {/* Game 1: Bit Miner */}
-        <div className="bg-slate-900/50 border border-slate-700 p-8 rounded-3xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <Cpu size={120} />
-          </div>
-          
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <Zap className="text-yellow-400" /> Quantum Miner
-          </h2>
-          
-          <div className="text-center py-10">
-            <div className="text-6xl font-mono font-bold text-emerald-400 mb-2">{bits}</div>
-            <div className="text-sm text-slate-500 uppercase tracking-widest mb-8">Quantum Bits Mined</div>
-            
-            <button 
-              onClick={mineBitcoin}
-              className="active:scale-95 transition-transform bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-4 rounded-full font-bold shadow-[0_0_20px_rgba(8,145,178,0.5)]"
-            >
-              MINE DATA
-            </button>
-          </div>
-
-          <div className="mt-8 border-t border-white/10 pt-6 flex justify-between items-center">
-            <span className="text-slate-400">Rig Power: {clickPower} TH/s</span>
-            <button 
-              onClick={upgradeRig}
-              disabled={bits < 50}
-              className="text-xs bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              Upgrade (50 Bits)
-            </button>
-          </div>
+    <div className="h-[400px] w-full relative select-none">
+      {!playing && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 backdrop-blur-sm">
+          <h2 className="text-3xl font-bold mb-2">Score: {score}</h2>
+          <button onClick={startGame} className="bg-emerald-500 text-black font-bold px-6 py-2 rounded-full hover:scale-105 transition-transform">
+            {timeLeft === 0 ? "Play Again" : "Start Aim Test"}
+          </button>
         </div>
+      )}
+      
+      <div className="absolute top-4 left-4 font-mono text-xl">Time: {timeLeft}s</div>
+      <div className="absolute top-4 right-4 font-mono text-xl text-cyan-400">Hits: {score}</div>
 
-        {/* External Games Links (Neal.fun style) */}
-        <div className="grid grid-cols-2 gap-4">
-          {['The Password Game', 'Space Elevator', 'Deep Sea', 'Asteroids'].map((game) => (
-            <a 
-              key={game}
-              href="#" // You can replace this with actual URLs later
-              className="aspect-square bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center hover:bg-white/10 transition-all hover:scale-105 cursor-pointer group"
-            >
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg mb-4 group-hover:rotate-12 transition-transform" />
-              <span className="font-bold text-slate-300">{game}</span>
-            </a>
-          ))}
+      {playing && (
+        <div 
+          onClick={moveTarget}
+          style={{ top: position.top, left: position.left }}
+          className="absolute w-12 h-12 bg-red-500 rounded-full border-4 border-white cursor-crosshair transform -translate-x-1/2 -translate-y-1/2 active:scale-90 transition-transform duration-75"
+        >
+           <div className="w-full h-full flex items-center justify-center">
+             <div className="w-2 h-2 bg-white rounded-full"/>
+           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// 3. Memory Puzzle (Simon/Grid style)
+function MemoryPuzzle() {
+  const [grid, setGrid] = useState(Array(16).fill(false));
+  
+  const randomize = () => {
+    const newGrid = Array(16).fill(false).map(() => Math.random() > 0.7);
+    setGrid(newGrid);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full">
+      <h2 className="text-2xl font-bold mb-6">Pattern Decryptor</h2>
+      <div className="grid grid-cols-4 gap-2 mb-6">
+        {grid.map((active, i) => (
+          <div 
+            key={i} 
+            onClick={() => {
+               const n = [...grid]; 
+               n[i] = !n[i]; 
+               setGrid(n);
+            }}
+            className={`w-16 h-16 rounded-lg cursor-pointer transition-all duration-300 ${active ? "bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.6)]" : "bg-white/5 hover:bg-white/10"}`}
+          />
+        ))}
       </div>
+      <button onClick={randomize} className="text-sm text-slate-400 underline decoration-dotted">
+        Reset Sequence
+      </button>
     </div>
   );
 }
