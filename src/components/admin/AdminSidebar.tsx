@@ -1,5 +1,5 @@
 "use client";
-import { LogOut, LayoutDashboard, FolderKanban, Rss } from "lucide-react";
+import { LogOut, LayoutDashboard, FolderKanban, Rss, BookOpen } from "lucide-react";
 import { auth } from "../../lib/firebase";
 import { useRouter } from "next/navigation";
 
@@ -15,6 +15,7 @@ export function AdminSidebar({ activeTab, setActiveTab }: { activeTab: string, s
     { id: "handles", label: "Handles", icon: <LayoutDashboard size={18} /> },
     { id: "projects", label: "Projects", icon: <FolderKanban size={18} /> },
     { id: "news", label: "News Feed", icon: <Rss size={18} /> },
+    { id: "guides", label: "Guides", icon: <BookOpen size={18} /> },
   ];
 
   return (
