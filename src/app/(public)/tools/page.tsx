@@ -1,34 +1,43 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
-import { Save, Eraser, PenTool, Type, Download, Bold, Italic, Underline, Palette, Undo, FileDown } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Save, Eraser, PenTool, Type, Download, Bold, Italic, Underline, Trash2, Menu, X } from "lucide-react";
 
 export default function ToolsPage() {
   const [activeTool, setActiveTool] = useState<"notepad" | "drawpad">("drawpad");
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 pt-24 flex flex-col items-center overflow-hidden">
-      <div className="w-full max-w-6xl h-[80vh] flex flex-col">
-        {/* Tool Switcher */}
-        <div className="flex gap-4 mb-4 justify-center">
+    <div className="min-h-screen bg-black text-white pt-20 md:pt-24 flex flex-col items-center overflow-hidden fixed inset-0">
+      <div className="w-full max-w-7xl h-full flex flex-col px-2 pb-2 md:px-4 md:pb-4">
+        
+        {/* Responsive Toggle Switcher */}
+        <div className="flex shrink-0 gap-2 md:gap-6 mb-2 md:mb-4 justify-center bg-zinc-900/80 p-1.5 rounded-full border border-white/10 w-fit mx-auto backdrop-blur-md z-50">
           <button 
             onClick={() => setActiveTool("notepad")}
-            className={`flex items-center gap-2 px-6 py-2 rounded-full border transition-all ${activeTool === "notepad" ? "bg-cyan-600 border-cyan-500" : "bg-white/5 border-white/10 hover:bg-white/10"}`}
+            className={`flex items-center gap-2 px-4 md:px-8 py-2 md:py-3 rounded-full border transition-all duration-300 text-sm md:text-base font-bold ${
+              activeTool === "notepad" 
+                ? "bg-cyan-600 border-cyan-400 text-white shadow-[0_0_20px_rgba(8,145,178,0.6)]" 
+                : "bg-transparent border-transparent text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
           >
-            <Type size={18} /> Secure Notes
+            <Type size={16} className="md:w-5 md:h-5" /> <span className="hidden md:inline">Secure</span> Notes
           </button>
+          
           <button 
             onClick={() => setActiveTool("drawpad")}
-            className={`flex items-center gap-2 px-6 py-2 rounded-full border transition-all ${activeTool === "drawpad" ? "bg-purple-600 border-purple-500" : "bg-white/5 border-white/10 hover:bg-white/10"}`}
+            className={`flex items-center gap-2 px-4 md:px-8 py-2 md:py-3 rounded-full border transition-all duration-300 text-sm md:text-base font-bold ${
+              activeTool === "drawpad" 
+                ? "bg-purple-600 border-purple-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.6)]" 
+                : "bg-transparent border-transparent text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
           >
-            <PenTool size={18} /> Whiteboard
+            <PenTool size={16} className="md:w-5 md:h-5" /> Whiteboard
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 bg-[#111] border border-white/10 rounded-2xl overflow-hidden relative shadow-2xl">
-          {activeTool === "notepad" ? <Notepad /> : <Drawpad />}
+        <div className="flex-1 bg-[#111] border border-white/10 rounded-xl md:rounded-3xl overflow-hidden relative shadow-2xl">
+          {activeTool === "notepad" ? <RichNotepad /> : <Drawpad />}
         </div>
       </div>
     </div>
@@ -36,80 +45,76 @@ export default function ToolsPage() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* NOTEPAD                                   */
+/* RICH TEXT NOTEPAD                                                         */
 /* -------------------------------------------------------------------------- */
-function Notepad() {
-  const [text, setText] = useState("");
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+function RichNotepad() {
+  const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("secure_notes");
-    if (saved) setText(saved);
+    const saved = localStorage.getItem("secure_notes_html");
+    if (saved && editorRef.current) editorRef.current.innerHTML = saved;
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
-    localStorage.setItem("secure_notes", e.target.value);
+  const handleInput = () => {
+    if (editorRef.current) localStorage.setItem("secure_notes_html", editorRef.current.innerHTML);
   };
 
-  const insertFormat = (char: string) => {
-    // Simple markdown-style insertion for this lightweight version
-    if (!editorRef.current) return;
-    const start = editorRef.current.selectionStart;
-    const end = editorRef.current.selectionEnd;
-    const val = editorRef.current.value;
-    const before = val.substring(0, start);
-    const sel = val.substring(start, end);
-    const after = val.substring(end);
-    
-    // Toggle format logic could be complex, doing simple wrap here
-    const newVal = `${before}${char}${sel}${char}${after}`;
-    setText(newVal);
-    localStorage.setItem("secure_notes", newVal);
+  const formatDoc = (cmd: string) => {
+    document.execCommand(cmd, false);
+    editorRef.current?.focus();
   };
 
   const downloadPDF = () => {
     const doc = new jsPDF();
-    doc.setFont("courier");
+    const text = editorRef.current?.innerText || "";
     const splitText = doc.splitTextToSize(text, 180);
     doc.text(splitText, 10, 10);
-    doc.save("secure-notes.pdf");
+    doc.save("notes.pdf");
   };
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a1a]">
-      {/* Toolbar */}
-      <div className="p-2 flex justify-between items-center border-b border-white/10 bg-[#222]">
-        <div className="flex gap-2">
-           <button onClick={() => insertFormat("**")} className="p-2 hover:bg-white/10 rounded text-slate-300" title="Bold"><Bold size={16}/></button>
-           <button onClick={() => insertFormat("*")} className="p-2 hover:bg-white/10 rounded text-slate-300" title="Italic"><Italic size={16}/></button>
-           <button onClick={() => insertFormat("__")} className="p-2 hover:bg-white/10 rounded text-slate-300" title="Underline"><Underline size={16}/></button>
+      <div className="p-2 md:p-3 flex justify-between items-center border-b border-white/10 bg-[#222]">
+        <div className="flex gap-1 md:gap-2">
+           <FormatBtn icon={<Bold size={18}/>} onClick={() => formatDoc('bold')} />
+           <FormatBtn icon={<Italic size={18}/>} onClick={() => formatDoc('italic')} />
+           <FormatBtn icon={<Underline size={18}/>} onClick={() => formatDoc('underline')} />
         </div>
-        <button onClick={downloadPDF} className="flex items-center gap-2 text-xs bg-cyan-600 px-3 py-1.5 rounded text-white hover:bg-cyan-500 font-bold">
-          <Download size={14} /> PDF
+        <button onClick={downloadPDF} className="flex items-center gap-2 text-xs bg-cyan-600 hover:bg-cyan-500 px-3 py-2 rounded-lg text-white font-bold transition-all">
+          <Download size={14} /> <span className="hidden sm:inline">Export PDF</span>
         </button>
       </div>
-      <textarea 
+      
+      <div 
         ref={editorRef}
-        className="flex-1 bg-transparent p-6 text-emerald-400 font-mono resize-none focus:outline-none text-lg leading-relaxed"
-        value={text}
-        onChange={handleChange}
-        placeholder="// Enter classified data..."
+        contentEditable
+        onInput={handleInput}
+        className="flex-1 bg-transparent p-4 md:p-8 text-emerald-400 font-mono text-base md:text-lg outline-none overflow-y-auto leading-relaxed"
       />
     </div>
   );
 }
 
+function FormatBtn({ icon, onClick }: any) {
+  return (
+    <button onClick={onClick} className="p-2 hover:bg-white/10 rounded-lg text-slate-300 transition-colors">
+      {icon}
+    </button>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
-/* DRAWPAD                                   */
+/* DRAWPAD (Responsive & Optimized)                                          */
 /* -------------------------------------------------------------------------- */
 function Drawpad() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [color, setColor] = useState("#a855f7"); // Default purple
+  const [color, setColor] = useState("#a855f7"); 
   const [brushSize, setBrushSize] = useState(3);
+  const [eraserSize, setEraserSize] = useState(20);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [showSaveMenu, setShowSaveMenu] = useState(false);
+  const [activeToolMode, setActiveToolMode] = useState<"brush" | "eraser">("brush");
+  const [menuOpen, setMenuOpen] = useState(false); // Mobile Menu Toggle
 
   // Resize Logic
   useEffect(() => {
@@ -117,41 +122,42 @@ function Drawpad() {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (canvas && container) {
-        // Save current content
         const tempCanvas = document.createElement("canvas");
         const tempCtx = tempCanvas.getContext("2d");
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
+        tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
         tempCtx?.drawImage(canvas, 0, 0);
-
-        // Resize
-        canvas.width = container.offsetWidth;
+        
+        canvas.width = container.offsetWidth; 
         canvas.height = container.offsetHeight;
-
-        // Restore content
+        
         const ctx = canvas.getContext("2d");
         if (ctx) {
            ctx.drawImage(tempCanvas, 0, 0);
            ctx.lineCap = "round";
            ctx.lineJoin = "round";
-           ctx.strokeStyle = color;
-           ctx.lineWidth = brushSize;
         }
       }
     };
     window.addEventListener("resize", handleResize);
-    handleResize();
+    // Slight delay to allow flexbox to settle
+    setTimeout(handleResize, 100);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Update context when color/size changes
+  // Update Context
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = brushSize;
+      if (activeToolMode === "eraser") {
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.lineWidth = eraserSize;
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = brushSize;
+      }
     }
-  }, [color, brushSize]);
+  }, [color, brushSize, eraserSize, activeToolMode]);
 
   const startDraw = (e: any) => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -174,108 +180,96 @@ function Drawpad() {
   const getCoords = (e: any) => {
     if (e.touches && e.touches[0]) {
       const rect = canvasRef.current?.getBoundingClientRect();
-      return {
-        offsetX: e.touches[0].clientX - (rect?.left || 0),
-        offsetY: e.touches[0].clientY - (rect?.top || 0)
-      };
+      return { offsetX: e.touches[0].clientX - (rect?.left || 0), offsetY: e.touches[0].clientY - (rect?.top || 0) };
     }
     return { offsetX: e.nativeEvent.offsetX, offsetY: e.nativeEvent.offsetY };
   };
 
   const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const saveImage = (format: "png" | "pdf") => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    if (format === "png") {
-      const link = document.createElement('a');
-      link.download = `whiteboard-${Date.now()}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } else {
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "landscape" });
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`whiteboard-${Date.now()}.pdf`);
+    if(confirm("Clear board?")) {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d");
+      if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-    setShowSaveMenu(false);
   };
 
-  const colors = ["#ffffff", "#000000", "#ef4444", "#22c55e", "#3b82f6"];
+  const saveImage = () => {
+    const canvas = canvasRef.current;
+    if(canvas) {
+       const link = document.createElement('a');
+       link.download = `whiteboard-${Date.now()}.png`;
+       link.href = canvas.toDataURL();
+       link.click();
+    }
+  };
+
+  const colors = ["#ffffff", "#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"];
 
   return (
-    <div ref={containerRef} className="flex h-full w-full bg-[#0f0f0f] relative group">
+    <div ref={containerRef} className="flex h-full w-full bg-[#0f0f0f] relative group touch-none">
       
-      {/* Left Sidebar (Color Picker) */}
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 p-3 bg-[#1a1a1a]/90 backdrop-blur border border-white/10 rounded-2xl shadow-xl z-20">
-        {colors.map((c) => (
-          <button
-            key={c}
-            onClick={() => setColor(c)}
-            className={`w-8 h-8 rounded-full border-2 transition-all ${color === c ? "border-white scale-110" : "border-transparent opacity-70 hover:opacity-100"}`}
-            style={{ backgroundColor: c }}
-          />
-        ))}
-        <div className="w-full h-[1px] bg-white/10 my-1" />
+      {/* Mobile Menu Toggle */}
+      <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden absolute top-4 left-4 z-30 bg-zinc-800 p-2 rounded-lg border border-white/10 text-white shadow-xl">
+        {menuOpen ? <X /> : <Menu />}
+      </button>
+
+      {/* Toolbar (Responsive) */}
+      <div className={`absolute top-0 left-0 h-full md:h-auto md:top-1/2 md:-translate-y-1/2 md:left-4 flex flex-col gap-4 p-4 bg-[#18181b]/95 backdrop-blur-xl border-r md:border border-white/10 md:rounded-2xl shadow-2xl z-20 w-16 items-center transition-transform duration-300 ${menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         
-        {/* Custom Color Wheel */}
-        <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer hover:border-white transition-colors">
-          <input 
-            type="color" 
-            value={color} 
-            onChange={(e) => setColor(e.target.value)}
-            className="absolute -top-2 -left-2 w-12 h-12 p-0 border-0 cursor-pointer"
-          />
-          <Palette size={16} className="absolute inset-0 m-auto text-white/50 pointer-events-none" />
+        {/* Color Palette */}
+        <div className={`flex flex-col gap-2 transition-opacity duration-300 ${activeToolMode === 'eraser' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+          {colors.map((c) => (
+            <button 
+              key={c} onClick={() => setColor(c)} 
+              className={`w-6 h-6 rounded-full border-2 transition-transform duration-200 ${color === c ? "border-white scale-125 shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "border-transparent hover:scale-110"}`} 
+              style={{ backgroundColor: c }} 
+            />
+          ))}
         </div>
         
-        <div className="w-full h-[1px] bg-white/10 my-1" />
-        <button onClick={clearCanvas} className="text-red-400 hover:bg-white/5 p-2 rounded-lg" title="Clear"><Eraser size={20}/></button>
+        <div className="w-full h-[1px] bg-white/10" />
+
+        {/* Tools */}
+        <ToolBtn icon={<PenTool size={20}/>} active={activeToolMode === "brush"} onClick={() => setActiveToolMode("brush")} color="purple" />
+        <ToolBtn icon={<Eraser size={20}/>} active={activeToolMode === "eraser"} onClick={() => setActiveToolMode("eraser")} color="red" />
+
+        {/* Slider */}
+        <div className="relative py-2 h-24 flex items-center justify-center">
+           <input 
+             type="range" 
+             min={activeToolMode === 'eraser' ? "10" : "1"} 
+             max={activeToolMode === 'eraser' ? "100" : "20"} 
+             value={activeToolMode === 'eraser' ? eraserSize : brushSize} 
+             onChange={(e) => activeToolMode === 'eraser' ? setEraserSize(Number(e.target.value)) : setBrushSize(Number(e.target.value))} 
+             className={`h-20 w-1.5 bg-white/10 rounded-full appearance-none cursor-pointer outline-none slider-vertical`}
+             style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
+           />
+        </div>
+
+        <div className="w-full h-[1px] bg-white/10" />
+        <button onClick={clearCanvas} className="text-slate-500 hover:text-red-400 p-2"><Trash2 size={20}/></button>
       </div>
 
-      {/* Top Right Save Menu */}
-      <div className="absolute top-4 right-4 z-20 flex gap-2">
-         <div className="relative">
-            <button 
-              onClick={() => setShowSaveMenu(!showSaveMenu)}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition-all"
-            >
-              <Save size={18} /> Save
-            </button>
-            
-            <AnimatePresence>
-              {showSaveMenu && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 top-12 bg-[#222] border border-white/10 rounded-xl p-2 w-32 flex flex-col gap-1 shadow-xl"
-                >
-                  <button onClick={() => saveImage("png")} className="flex items-center gap-2 p-2 hover:bg-white/10 rounded text-sm text-slate-300"><FileDown size={14}/> PNG Image</button>
-                  <button onClick={() => saveImage("pdf")} className="flex items-center gap-2 p-2 hover:bg-white/10 rounded text-sm text-slate-300"><FileDown size={14}/> PDF File</button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-         </div>
+      <div className="absolute top-4 right-4 z-20">
+         <button onClick={saveImage} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg text-sm md:text-base"><Save size={18} /> <span className="hidden sm:inline">Save</span></button>
       </div>
 
-      <canvas 
-        ref={canvasRef}
-        className="w-full h-full cursor-crosshair touch-none"
-        onMouseDown={startDraw}
-        onMouseMove={draw}
-        onMouseUp={() => setIsDrawing(false)}
-        onMouseLeave={() => setIsDrawing(false)}
-        onTouchStart={startDraw}
-        onTouchMove={draw}
-        onTouchEnd={() => setIsDrawing(false)}
+      <canvas ref={canvasRef} className="w-full h-full cursor-crosshair touch-none"
+        onMouseDown={startDraw} onMouseMove={draw} onMouseUp={() => setIsDrawing(false)} onMouseLeave={() => setIsDrawing(false)}
+        onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={() => setIsDrawing(false)}
       />
     </div>
+  );
+}
+
+function ToolBtn({ icon, active, onClick, color }: any) {
+  const activeClass = color === "red" 
+    ? "bg-red-500/20 text-red-400 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
+    : "bg-purple-600/20 text-purple-400 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]";
+    
+  return (
+    <button onClick={onClick} className={`p-3 rounded-xl transition-all duration-300 border-2 ${active ? activeClass : "text-slate-500 border-transparent hover:bg-white/5"}`}>
+      {icon}
+    </button>
   );
 }

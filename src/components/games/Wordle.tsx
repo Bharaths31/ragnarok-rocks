@@ -1,7 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 
-const WORD_BANK = ["CYBER", "LINUX", "CLOUD", "REACT", "LOGIC", "PIXEL", "STACK", "GHOST", "ALPHA", "OMEGA", "NEON", "HACKER", "NODES", "CRYPT", "SHELL"];
+const WORD_BANK = ["CYBER", "LINUX", "CLOUD", "REACT",
+                   "LOGIC", "PIXEL", "STACK", "GHOST",
+                   "ALPHA", "OMEGA", "NEON", "HACKER",
+                   "NODES", "CRYPT", "SHELL","HENTAI",
+                   "GOLD","TENTACLE","FISH","MINECRAFT"
+                  ];
 
 export default function Wordle() {
   const [target, setTarget] = useState("");

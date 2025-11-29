@@ -1,228 +1,105 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { jsPDF } from "jspdf";
-import { Save, Eraser, PenTool, Type, Download, Bold, Italic, Underline, Palette, FileDown, Trash2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
-export default function ToolsPage() {
-  const [activeTool, setActiveTool] = useState<"notepad" | "drawpad">("drawpad");
+import { useEffect, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { ArrowRight, Terminal, Cpu, Gamepad2, Newspaper, Wrench } from "lucide-react";
 
-  return (
-    <div className="min-h-screen bg-black text-white p-4 pt-24 flex flex-col items-center overflow-hidden">
-      <div className="w-full max-w-6xl h-[80vh] flex flex-col">
-        {/* Tool Switcher */}
-        <div className="flex gap-4 mb-4 justify-center">
-          <button onClick={() => setActiveTool("notepad")} className={`flex items-center gap-2 px-6 py-2 rounded-full border transition-all ${activeTool === "notepad" ? "bg-cyan-600 border-cyan-500" : "bg-white/5 border-white/10"}`}>
-            <Type size={18} /> Secure Notes
-          </button>
-          <button onClick={() => setActiveTool("drawpad")} className={`flex items-center gap-2 px-6 py-2 rounded-full border transition-all ${activeTool === "drawpad" ? "bg-purple-600 border-purple-500" : "bg-white/5 border-white/10"}`}>
-            <PenTool size={18} /> Whiteboard
-          </button>
-        </div>
-
-        <div className="flex-1 bg-[#111] border border-white/10 rounded-2xl overflow-hidden relative shadow-2xl">
-          {activeTool === "notepad" ? <RichNotepad /> : <Drawpad />}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* RICH TEXT NOTEPAD (No Asterisks!)             */
-/* -------------------------------------------------------------------------- */
-function RichNotepad() {
-  const editorRef = useRef<HTMLDivElement>(null);
+export default function Home() {
+  const [handles, setHandles] = useState<any[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("secure_notes_html");
-    if (saved && editorRef.current) {
-      editorRef.current.innerHTML = saved;
-    }
-  }, []);
-
-  const handleInput = () => {
-    if (editorRef.current) {
-      localStorage.setItem("secure_notes_html", editorRef.current.innerHTML);
-    }
-  };
-
-  const formatDoc = (cmd: string) => {
-    document.execCommand(cmd, false); // Native browser rich text command
-    editorRef.current?.focus();
-  };
-
-  const downloadPDF = () => {
-    const doc = new jsPDF();
-    // Strip HTML for simple PDF export or use html2canvas for full fidelity
-    // Simple text extraction:
-    const text = editorRef.current?.innerText || "";
-    const splitText = doc.splitTextToSize(text, 180);
-    doc.text(splitText, 10, 10);
-    doc.save("notes.pdf");
-  };
-
-  return (
-    <div className="flex flex-col h-full bg-[#1a1a1a]">
-      {/* Toolbar */}
-      <div className="p-2 flex justify-between items-center border-b border-white/10 bg-[#222]">
-        <div className="flex gap-1">
-           <button onClick={() => formatDoc('bold')} className="p-2 hover:bg-white/10 rounded text-slate-300 font-bold" title="Bold"><Bold size={16}/></button>
-           <button onClick={() => formatDoc('italic')} className="p-2 hover:bg-white/10 rounded text-slate-300 italic" title="Italic"><Italic size={16}/></button>
-           <button onClick={() => formatDoc('underline')} className="p-2 hover:bg-white/10 rounded text-slate-300 underline" title="Underline"><Underline size={16}/></button>
-        </div>
-        <button onClick={downloadPDF} className="flex items-center gap-2 text-xs bg-cyan-600 px-3 py-1.5 rounded text-white font-bold"><Download size={14} /> PDF</button>
-      </div>
-      
-      {/* Editable Div */}
-      <div 
-        ref={editorRef}
-        contentEditable
-        onInput={handleInput}
-        className="flex-1 bg-transparent p-6 text-emerald-400 font-mono text-lg outline-none overflow-y-auto"
-        style={{ minHeight: "100%" }} 
-      />
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* DRAWPAD (With Eraser Size)                    */
-/* -------------------------------------------------------------------------- */
-function Drawpad() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [color, setColor] = useState("#a855f7"); 
-  const [brushSize, setBrushSize] = useState(3);
-  const [eraserSize, setEraserSize] = useState(20); // New State
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [isEraserMode, setIsEraserMode] = useState(false); // Toggle
-  const [showSaveMenu, setShowSaveMenu] = useState(false);
-
-  useEffect(() => {
-    // Resize Logic (Same as before)
-    const handleResize = () => {
-      const canvas = canvasRef.current;
-      const container = containerRef.current;
-      if (canvas && container) {
-        const tempCanvas = document.createElement("canvas");
-        const tempCtx = tempCanvas.getContext("2d");
-        tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
-        tempCtx?.drawImage(canvas, 0, 0);
-        canvas.width = container.offsetWidth; canvas.height = container.offsetHeight;
-        const ctx = canvas.getContext("2d");
-        if (ctx) ctx.drawImage(tempCanvas, 0, 0);
-      }
+    const fetchHandles = async () => {
+      const snap = await getDocs(collection(db, "handles"));
+      setHandles(snap.docs.map(doc => doc.data()));
     };
-    window.addEventListener("resize", handleResize);
-    handleResize();
-    return () => window.removeEventListener("resize", handleResize);
+    fetchHandles();
   }, []);
 
-  // Update Context
-  useEffect(() => {
-    const ctx = canvasRef.current?.getContext("2d");
-    if (ctx) {
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      if (isEraserMode) {
-        ctx.globalCompositeOperation = "destination-out"; // Erase
-        ctx.lineWidth = eraserSize;
-      } else {
-        ctx.globalCompositeOperation = "source-over"; // Draw
-        ctx.strokeStyle = color;
-        ctx.lineWidth = brushSize;
-      }
-    }
-  }, [color, brushSize, eraserSize, isEraserMode]);
-
-  const startDraw = (e: any) => {
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx) return;
-    const { offsetX, offsetY } = getCoords(e);
-    ctx.beginPath();
-    ctx.moveTo(offsetX, offsetY);
-    setIsDrawing(true);
-  };
-
-  const draw = (e: any) => {
-    if (!isDrawing) return;
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx) return;
-    const { offsetX, offsetY } = getCoords(e);
-    ctx.lineTo(offsetX, offsetY);
-    ctx.stroke();
-  };
-
-  const getCoords = (e: any) => {
-    if (e.touches && e.touches[0]) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      return { offsetX: e.touches[0].clientX - (rect?.left || 0), offsetY: e.touches[0].clientY - (rect?.top || 0) };
-    }
-    return { offsetX: e.nativeEvent.offsetX, offsetY: e.nativeEvent.offsetY };
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const saveImage = () => {
-    const canvas = canvasRef.current;
-    if(canvas) {
-       const link = document.createElement('a');
-       link.download = `whiteboard-${Date.now()}.png`;
-       link.href = canvas.toDataURL();
-       link.click();
-    }
-    setShowSaveMenu(false);
-  };
+  const navItems = [
+    { name: "News Feed", icon: <Newspaper />, href: "/news", color: "from-pink-500 to-rose-500" },
+    { name: "Guides", icon: <Terminal />, href: "/guides", color: "from-purple-500 to-indigo-500" },
+    { name: "Tools", icon: <Wrench />, href: "/tools", color: "from-cyan-500 to-blue-500" },
+    { name: "Arcade", icon: <Gamepad2 />, href: "/games", color: "from-emerald-400 to-cyan-500" },
+  ];
 
   return (
-    <div ref={containerRef} className="flex h-full w-full bg-[#0f0f0f] relative group">
+    <main className="min-h-screen bg-[#050505] text-white overflow-hidden relative selection:bg-cyan-500 selection:text-black">
+      {/* Ambient Background */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/20 via-black to-black pointer-events-none" />
       
-      {/* Left Sidebar */}
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 p-4 bg-[#1a1a1a]/90 backdrop-blur border border-white/10 rounded-2xl z-20">
+      <div className="relative z-10 container mx-auto px-4 py-20 flex flex-col items-center text-center">
         
-        {/* Colors */}
-        {!isEraserMode && ["#ffffff", "#ef4444", "#22c55e", "#3b82f6", "#a855f7"].map((c) => (
-          <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full border-2 ${color === c ? "border-white scale-125" : "border-transparent"}`} style={{ backgroundColor: c }} />
-        ))}
+        {/* Profile Avatar with 'Breathing' Glow */}
+        <motion.div 
+          initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          className="mb-8 relative group"
+        >
+          <div className="absolute -inset-1 bg-gradient-to-r from-cyan-400 to-purple-600 rounded-full blur opacity-50 group-hover:opacity-100 transition duration-1000 animate-pulse"></div>
+          <div className="relative w-32 h-32 rounded-full bg-black flex items-center justify-center border-2 border-white/10 overflow-hidden">
+             {/* Replace src with your actual image URL or fetch from DB */}
+             <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Felix" alt="Avatar" className="w-full h-full object-cover" />
+          </div>
+        </motion.div>
+
+        <motion.h1 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-white to-purple-300 mb-6"
+        >
+          Cyber<span className="text-cyan-500">.</span>Dev
+        </motion.h1>
+
+        <motion.p 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+          className="max-w-2xl text-slate-400 mb-10 text-lg md:text-xl font-light"
+        >
+          Architecting the future with <span className="text-cyan-400">Quantum Tech</span>, <span className="text-purple-400">Cyber Security</span>, and <span className="text-emerald-400">Indie Games</span>.
+        </motion.p>
+
+        {/* Social Handles (Auto-Fetched) */}
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+          className="flex flex-wrap justify-center gap-4 mb-20"
+        >
+          {handles.map((handle, idx) => (
+            <a 
+              key={idx} href={handle.url} target="_blank"
+              className="flex items-center gap-3 px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-500/50"
+            >
+              <img src={handle.icon} className="w-5 h-5 rounded-sm" alt="" />
+              <span className="font-medium text-sm text-slate-300">{handle.platform}</span>
+            </a>
+          ))}
+        </motion.div>
         
-        <div className="w-full h-[1px] bg-white/10" />
-
-        {/* Eraser Toggle */}
-        <button onClick={() => setIsEraserMode(!isEraserMode)} className={`p-2 rounded-lg transition-colors ${isEraserMode ? "bg-red-500 text-white" : "text-slate-400 hover:bg-white/10"}`} title="Eraser">
-          <Eraser size={20} />
-        </button>
-
-        {/* Sliders */}
-        {isEraserMode ? (
-           <div className="flex flex-col items-center">
-             <label className="text-[10px] text-slate-400 mb-1">Size</label>
-             <input type="range" min="10" max="100" value={eraserSize} onChange={(e) => setEraserSize(Number(e.target.value))} className="h-24 w-1 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-red-500 [&::-webkit-slider-thumb]:rounded-full" style={{ writingMode: 'vertical-lr', direction: 'rtl' }} />
-           </div>
-        ) : (
-           <div className="flex flex-col items-center">
-             <label className="text-[10px] text-slate-400 mb-1">Brush</label>
-             <input type="range" min="1" max="20" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="h-24 w-1 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:rounded-full" style={{ writingMode: 'vertical-lr', direction: 'rtl' }} />
-           </div>
-        )}
-
-        <div className="w-full h-[1px] bg-white/10" />
-        <button onClick={clearCanvas} className="text-red-400 hover:bg-white/5 p-2" title="Clear All"><Trash2 size={20}/></button>
+        {/* Navigation Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-5xl">
+           {navItems.map((item, index) => (
+             <motion.div
+               key={item.name}
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ delay: 0.5 + (index * 0.1) }}
+             >
+               <Link 
+                 href={item.href}
+                 className="group relative block p-8 rounded-3xl bg-white/5 border border-white/5 overflow-hidden hover:border-white/20 transition-all duration-500 h-full"
+               >
+                 <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 bg-gradient-to-br ${item.color} transition-opacity duration-500`} />
+                 <div className="relative z-10 flex flex-col items-center">
+                   <div className={`p-4 rounded-2xl bg-gradient-to-br ${item.color} mb-4 shadow-lg`}>
+                     {item.icon}
+                   </div>
+                   <h3 className="text-xl font-bold mb-2">{item.name}</h3>
+                   <div className="w-8 h-1 bg-white/20 rounded-full group-hover:w-16 transition-all duration-300" />
+                 </div>
+               </Link>
+             </motion.div>
+           ))}
+        </div>
       </div>
-
-      {/* Save Button */}
-      <div className="absolute top-4 right-4 z-20">
-         <button onClick={saveImage} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg"><Save size={18} /> Save PNG</button>
-      </div>
-
-      <canvas ref={canvasRef} className="w-full h-full cursor-crosshair touch-none"
-        onMouseDown={startDraw} onMouseMove={draw} onMouseUp={() => setIsDrawing(false)} onMouseLeave={() => setIsDrawing(false)}
-        onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={() => setIsDrawing(false)}
-      />
-    </div>
+    </main>
   );
 }
