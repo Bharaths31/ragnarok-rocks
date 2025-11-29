@@ -16,7 +16,7 @@ export default function AdminLogin() {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/admin/dashboard");
+      router.push("/dashboard");
     } catch (err: any) {
       setError("Access Denied: Invalid Credentials");
     }
